@@ -1,0 +1,139 @@
+# validate.yml
+# Runs on every push and pull request.
+# Checks: Python syntax, JSON validity, plugin manifest schema.
+# Fast feedback loop — target runtime < 60 seconds.
+
+name: Validate
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  python-syntax:
+    name: Python Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile-check all scripts
+        run: |
+          echo "Checking Python syntax in scripts/..."
+          for f in scripts/*.py; do
+            echo "  → $f"
+            python -m py_compile "$f" || exit 1
+          done
+          echo "All scripts passed syntax check."
+
+  json-validity:
+    name: JSON Validity Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate all JSON files
+        run: |
+          echo "Validating JSON files..."
+          failed=0
+          for f in $(find . -name "*.json" \
+              -not -path "./.git/*" \
+              -not -path "./node_modules/*"); do
+            python -m json.tool "$f" > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+              echo "  ✗ INVALID: $f"
+              failed=1
+            else
+              echo "  ✓ $f"
+            fi
+          done
+          if [ $failed -eq 1 ]; then
+            echo "One or more JSON files failed validation."
+            exit 1
+          fi
+          echo "All JSON files are valid."
+
+  plugin-manifest:
+    name: Plugin Manifest Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify plugin.json exists and has required fields
+        run: |
+          MANIFEST=".claude-plugin/plugin.json"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "Error: $MANIFEST not found."
+            exit 1
+          fi
+          # Check required fields: name, version, description
+          python - <<'EOF'
+          import json, sys
+          with open(".claude-plugin/plugin.json") as f:
+              m = json.load(f)
+          required = ["name", "version", "description"]
+          missing = [k for k in required if k not in m]
+          if missing:
+              print(f"plugin.json missing required fields: {missing}")
+              sys.exit(1)
+          # Validate version is semver-like (X.Y.Z)
+          version = m.get("version", "")
+          parts = version.split(".")
+          if len(parts) != 3 or not all(p.isdigit() for p in parts):
+              print(f"plugin.json version '{version}' does not match X.Y.Z format")
+              sys.exit(1)
+          print(f"plugin.json valid: {m['name']} v{m['version']}")
+          EOF
+
+  script-integration:
+    name: Script Integration Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run --show with no data (should not crash)
+        working-directory: .
+        run: |
+          python scripts/log_meal.py --show --date 2026-01-01
+          echo "Exit code: $?"
+
+      - name: Test bad date validation
+        run: |
+          python scripts/log_meal.py --show --date "not-a-date" 2>&1
+          # Should exit 1 with a clean error message, not a traceback
+          if python scripts/log_meal.py --show --date "not-a-date" 2>&1 | grep -q "Traceback"; then
+            echo "Error: Script raised an unhandled exception on bad input."
+            exit 1
+          fi
+          echo "Bad date handled cleanly."
+
+      - name: Test bad week validation
+        run: |
+          if python scripts/weekly_summary.py --week "garbage" 2>&1 | grep -q "Traceback"; then
+            echo "Error: Script raised an unhandled exception on bad week input."
+            exit 1
+          fi
+          echo "Bad week handled cleanly."
+
+      - name: Test export with missing plan (should exit 1, no traceback)
+        run: |
+          if python scripts/export_grocery_list.py --week "2026-W01" 2>&1 | grep -q "Traceback"; then
+            echo "Error: Script raised an unhandled exception on missing plan."
+            exit 1
+          fi
+          echo "Missing plan handled cleanly."

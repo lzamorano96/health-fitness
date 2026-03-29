@@ -1,0 +1,95 @@
+# release.yml
+# Triggers on version tag push (e.g., v0.1.0, v1.2.3).
+# Packages the plugin as a .plugin file and attaches it to the GitHub Release.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'        # Matches v0.1.0, v1.2.3, etc.
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'  # Matches v1.0.0-rc.1
+
+jobs:
+  build-and-release:
+    name: Package and Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Required to create GitHub Releases
+
+    steps:
+      - name: Checkout repository at tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for changelog extraction
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building release for tag: $TAG (version: $VERSION)"
+
+      - name: Verify plugin.json version matches tag
+        run: |
+          MANIFEST_VERSION=$(python -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          # Strip pre-release suffix for comparison (rc.1, etc.)
+          BASE_VERSION="${TAG_VERSION%%-*}"
+          if [ "$MANIFEST_VERSION" != "$BASE_VERSION" ]; then
+            echo "Version mismatch: plugin.json=$MANIFEST_VERSION, tag=$TAG_VERSION"
+            echo "Update plugin.json version before tagging a release."
+            exit 1
+          fi
+          echo "Version verified: $MANIFEST_VERSION"
+
+      - name: Package .plugin file
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          PLUGIN_NAME="health-fitness-${TAG}.plugin"
+          zip -r "/tmp/${PLUGIN_NAME}" . \
+            -x "*.DS_Store" \
+            -x ".git/*" \
+            -x ".github/*" \
+            -x "__pycache__/*" \
+            -x "*.pyc" \
+            -x "*.tmp" \
+            -x "data/logs/*" \
+            -x "data/reports/*" \
+            -x "exports/*"
+          echo "plugin_path=/tmp/${PLUGIN_NAME}" >> $GITHUB_ENV
+          echo "plugin_name=${PLUGIN_NAME}" >> $GITHUB_ENV
+          echo "Packaged: ${PLUGIN_NAME}"
+
+      - name: Extract CHANGELOG entry for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Extract the section for this version from CHANGELOG.md
+          python - <<'EOF'
+          import re, os
+          version = os.environ.get("VERSION", "")
+          with open("CHANGELOG.md") as f:
+              content = f.read()
+          # Match section: ## [X.Y.Z] — date  ...until next ## [
+          pattern = rf"## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|\Z)"
+          match = re.search(pattern, content, re.DOTALL)
+          notes = match.group(1).strip() if match else f"Release {version}"
+          with open("/tmp/release_notes.md", "w") as f:
+              f.write(notes)
+          print(f"Extracted {len(notes)} chars of release notes.")
+          EOF
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "${{ steps.version.outputs.tag }}"
+          body_path: /tmp/release_notes.md
+          files: ${{ env.plugin_path }}
+          prerelease: ${{ contains(steps.version.outputs.tag, '-rc') }}
+          make_latest: ${{ !contains(steps.version.outputs.tag, '-rc') }}
