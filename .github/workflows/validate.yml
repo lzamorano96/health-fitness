@@ -114,9 +114,11 @@ jobs:
 
       - name: Test bad date validation
         run: |
-          python scripts/log_meal.py --show --date "not-a-date" 2>&1
-          # Should exit 1 with a clean error message, not a traceback
-          if python scripts/log_meal.py --show --date "not-a-date" 2>&1 | grep -q "Traceback"; then
+          # Script should exit 1 with a clean message — not a Python traceback.
+          # Pipe to grep so the step doesn't inherit the script's non-zero exit code.
+          output=$(python scripts/log_meal.py --show --date "not-a-date" 2>&1 || true)
+          echo "$output"
+          if echo "$output" | grep -q "Traceback"; then
             echo "Error: Script raised an unhandled exception on bad input."
             exit 1
           fi
