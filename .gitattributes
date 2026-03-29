@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# health-fitness — .gitattributes
+#
+# Controls three behaviors:
+#   1. Line endings (eol): ensures cross-platform consistency
+#   2. Diff rendering: makes file types human-readable in PR diffs
+#   3. Binary handling: prevents binary corruption via text processing
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Default: auto-normalize all text files ───────────────────────────────────
+* text=auto
+
+# ── Source files — Unix line endings (LF) ────────────────────────────────────
+# Python scripts must use LF to be executable on Linux/macOS.
+scripts/*.py        text eol=lf
+*.sh                text eol=lf
+
+# ── Structured data — LF, JSON-aware diffing ─────────────────────────────────
+# JSON diff rendering shows structural changes clearly in GitHub PR view.
+*.json              text eol=lf diff=json
+*.jsonc             text eol=lf diff=json
+
+# ── Documentation — LF, Markdown-aware diffing ───────────────────────────────
+*.md                text eol=lf diff=markdown
+*.txt               text eol=lf
+
+# ── Plugin and configuration files ───────────────────────────────────────────
+.gitignore          text eol=lf
+.gitattributes      text eol=lf
+*.yml               text eol=lf
+*.yaml              text eol=lf
+*.toml              text eol=lf
+*.cfg               text eol=lf
+*.ini               text eol=lf
+
+# ── Binary assets — no diff, no line-ending normalization ────────────────────
+*.png               binary
+*.jpg               binary
+*.jpeg              binary
+*.gif               binary
+*.ico               binary
+*.pdf               binary
+*.zip               binary
+*.plugin            binary
+
+# ── GitHub-specific: linguist overrides ──────────────────────────────────────
+# Prevents GitHub from classifying Markdown reference files as the project's
+# primary language. Skills are the source — Python scripts drive the stats.
+skills/**/*.md      linguist-documentation=true
+agents/*.md         linguist-documentation=true
+docs/*.md           linguist-documentation=true
+README.md           linguist-documentation=true
+CHANGELOG.md        linguist-documentation=true

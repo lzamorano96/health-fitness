@@ -1,0 +1,9 @@
+{
+  "name": "health-fitness",
+  "version": "0.1.0",
+  "description": "Local health and fitness hub: weekly meal prep planning, calorie tracking, macro targeting, and one-click HEB grocery list export. All data stored locally as JSON.",
+  "author": {
+    "name": "Luis"
+  },
+  "keywords": ["health", "fitness", "nutrition", "meal-prep", "calorie-tracking", "macros", "grocery", "heb"]
+}

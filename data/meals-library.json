@@ -1,0 +1,4 @@
+{
+  "_note": "Meal library — all meals used in past plans. Claude appends new meals here automatically. Never remove meals unless you want them regenerated.",
+  "meals": []
+}
