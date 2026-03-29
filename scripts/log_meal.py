@@ -163,15 +163,23 @@ def save_log(log_data: dict, log_date: str) -> bool:
 
 def lookup_macros(item_name: str) -> dict:
     """Look up macros for an item. Returns estimated values if not found."""
+    if not item_name or not item_name.strip():
+        print("  ⚠  Empty item name — using placeholder values (estimated)")
+        return {"calories": 200, "protein_g": 15, "carbs_g": 20, "fat_g": 8, "estimated": True}
     key = item_name.lower().strip()
     if key in NUTRITION_DB:
         return {**NUTRITION_DB[key], "estimated": False}
-    # Fuzzy: check if any DB key is a substring
+    # Fuzzy match: check if the input starts with or contains a DB entry's
+    # primary word as a whole-word boundary (not just a substring).
+    # This prevents "michigan salad" from matching "chicken".
+    input_words = set(key.split())
     for db_key, macros in NUTRITION_DB.items():
-        if db_key.split()[0] in key:
+        primary_word = db_key.split()[0]
+        if primary_word in input_words:
             return {**macros, "estimated": True}
     # Default estimate
-    print(f"  ⚠  Unknown item '{item_name}' — using placeholder values (estimated)")
+    sanitized = item_name.strip()[:60]  # truncate for safe display
+    print(f"  ⚠  Unknown item '{sanitized}' — using placeholder values (estimated)")
     return {"calories": 200, "protein_g": 15, "carbs_g": 20, "fat_g": 8, "estimated": True}
 
 
@@ -237,12 +245,18 @@ def add_entry(meal_str: str, slot: str, log_date: str):
     added = []
 
     for item in items:
-        macros = lookup_macros(item)
+        # Sanitize: cap name length, strip control characters
+        sanitized_name = item.strip()[:120]
+        sanitized_name = "".join(c for c in sanitized_name if c.isprintable())
+        if not sanitized_name:
+            print(f"  ⚠  Skipping empty/unprintable item.")
+            continue
+        macros = lookup_macros(sanitized_name)
         entry = {
             "id": datetime.now().isoformat(),
             "meal_slot": slot,
             "logged_at": datetime.now().isoformat(),
-            "name": item,
+            "name": sanitized_name,
             "calories": macros["calories"],
             "protein_g": macros["protein_g"],
             "carbs_g": macros["carbs_g"],

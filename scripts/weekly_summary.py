@@ -13,6 +13,7 @@ Output: Formatted summary table with per-day and weekly-average macros vs target
 import json
 import sys
 import re
+import math
 import argparse
 from datetime import date, timedelta
 from pathlib import Path
@@ -126,9 +127,21 @@ def load_targets() -> dict:
 
 
 def safe_int(val, default: int = 0) -> int:
-    """Coerce a value to int safely."""
-    if isinstance(val, (int, float)):
+    """Coerce a value to int safely. Handles None, strings, NaN, and infinity."""
+    if val is None:
+        return default
+    if isinstance(val, float):
+        if math.isnan(val) or math.isinf(val):
+            return default
         return int(val)
+    if isinstance(val, int):
+        return val
+    # Try to parse string numbers
+    if isinstance(val, str):
+        try:
+            return int(float(val))
+        except (ValueError, OverflowError):
+            return default
     return default
 
 
@@ -151,6 +164,10 @@ def status_label(actual_cal: int, target_cal: int) -> str:
 
 
 def print_week_summary(dates: list[date], week_label: str):
+    if not dates:
+        print(f"\n  No dates to display for {week_label}.")
+        return
+
     targets = load_targets()
     cal_t = targets["daily_calories"]
     p_t = targets["macros"]["protein_g"]

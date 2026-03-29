@@ -78,3 +78,17 @@ See `references/log-schema.md` for the exact JSON structure.
 When the user gives vague input, ask one clarifying question maximum — don't interrogate. Default to a medium portion if truly unknown and flag it.
 
 Do not invent brands. Use generic item names in the log.
+
+### Error Handling
+
+Follow these defensive rules at every step:
+
+**Missing data directory**: If `data/` or `data/logs/` does not exist, create it before writing. Never crash on a missing directory.
+
+**Corrupt or empty log file**: If a log file exists but contains invalid JSON, warn the user ("Your log for [date] appears corrupted — starting a fresh log") and create a new empty log. Do not silently discard the corrupt file — rename it to `YYYY-MM-DD.json.bak` first.
+
+**Deletion on empty log**: If the user asks to delete an entry but the log is empty or the entry doesn't exist, respond with: "No matching entry found for [item] in [slot]. Here's what's currently logged:" and display the log. Never error silently.
+
+**Empty or unprintable input**: If the user provides an empty string or a string with only whitespace/control characters, respond: "No food items provided. Try something like: 'log chicken breast 6oz for lunch'."
+
+**Non-numeric macro values**: If a log entry has non-numeric values for calories or macros (e.g., from a hand-edited file), treat them as 0 and flag the entry as needing correction.

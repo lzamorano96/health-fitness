@@ -80,3 +80,15 @@ If the user wants to swap a meal:
 If the user says "regenerate" or "different options", produce a new plan avoiding all meals used in both the current and previous week.
 
 See `references/meal-plan-schema.md` for exact JSON format and `references/heb-integration.md` for the handoff format.
+
+### Error Handling
+
+**Missing `data/` or subdirectories**: If `data/meal-plans/` does not exist, create it before saving. Never crash on a missing directory.
+
+**Missing targets**: If `data/targets.json` does not exist or contains invalid JSON, do not proceed. Respond: "No valid macro targets found. Run 'set my macro targets' first so I can build a plan that matches your goals."
+
+**Corrupt meals library**: If `data/meals-library.json` exists but contains invalid JSON, warn the user ("Meal library is corrupted — starting fresh") and initialize a new empty library. Rename the corrupt file to `meals-library.json.bak`.
+
+**Null values in targets**: If `targets.json` has `null` for `daily_calories` or any macro, treat it as the default (2,200 kcal / 165P / 220C / 70F) and inform the user the defaults are being used.
+
+**Empty meal library**: If the library has zero meals, that's fine — generate everything from scratch. Do not treat an empty library as an error.

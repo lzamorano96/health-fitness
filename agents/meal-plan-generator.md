@@ -78,5 +78,21 @@ Output a clean markdown table (day × meal slot) with calories and macros per da
 - Count of prep-friendly meals
 - Offer: "Ready to export your grocery list to HEB?"
 
+## Error Handling
+
+Handle every failure gracefully. Never produce a Python traceback or raw error to the user.
+
+**Missing targets file**: If `data/targets.json` does not exist, stop immediately. Respond: "No targets found. Ask the user to set their macro targets first using the macro-targets skill." Do not generate a plan with hardcoded defaults — the user must confirm their goals first.
+
+**Null or zero values in targets**: If `daily_calories` is null, 0, or negative, or if any macro value is null/0/negative, stop and report: "Your targets file has incomplete values. Run 'set my macro targets' to fix this."
+
+**Missing `data/meal-plans/` directory**: Create it before writing. Use `mkdir -p` via Bash or create via Write tool.
+
+**Corrupt meals library**: If `data/meals-library.json` exists but fails to parse, log a warning ("Meal library was corrupted — starting fresh"), rename the corrupt file to `.bak`, and initialize a new empty library.
+
+**Missing `last_used` on library meals**: If a meal in the library has no `last_used` field, treat it as eligible for use (assume it hasn't been used recently). Do not crash on missing fields.
+
+**Write failures**: If writing the plan or updating the library fails (permission denied, disk full), report the error clearly and output the plan to the conversation so the user can at least see it, even if it couldn't be saved to disk.
+
 ## Output Tone
 Direct. No filler sentences. Lead with the data.

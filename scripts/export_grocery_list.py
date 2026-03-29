@@ -14,6 +14,7 @@ paste into the heb-list-builder skill or save as a .txt file.
 import json
 import sys
 import re
+import math
 import argparse
 from pathlib import Path
 from datetime import date, timedelta
@@ -107,7 +108,12 @@ def merge_ingredients(plan: dict) -> list[dict]:
 
 
 def format_quantity(qty: float) -> str:
-    """Format quantity: use integers when whole, otherwise 1 decimal."""
+    """Format quantity: use integers when whole, otherwise 1 decimal.
+    Guards against NaN, infinity, and negative values."""
+    if math.isnan(qty) or math.isinf(qty):
+        return "1"  # safe fallback
+    if qty < 0:
+        qty = abs(qty)
     if qty == int(qty):
         return str(int(qty))
     return f"{qty:.1f}"
@@ -157,7 +163,10 @@ def main():
     output = header + formatted
 
     if args.output:
-        out_path = Path(args.output)
+        if not args.output.strip():
+            print("  Error: Output path is empty. Provide a valid file path.")
+            sys.exit(1)
+        out_path = Path(args.output.strip())
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_text(output)
