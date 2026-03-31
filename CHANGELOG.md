@@ -27,6 +27,30 @@ and [Semantic Versioning 2.0.0](https://semver.org/).
 
 ---
 
+## [0.1.1] — 2026-03-30
+
+### Fixed
+
+- `log_meal.py`: Replaced substring fuzzy match with whole-word boundary
+  matching to prevent false positives (e.g., "michigan salad" no longer
+  matches "chicken"). Added entry name sanitization — names are capped at
+  120 characters and control characters are stripped before writing to log.
+- `export_grocery_list.py`: `format_quantity()` now guards against `NaN`,
+  `inf`, and negative float values. Added validation to reject empty or
+  whitespace-only `--output` paths before attempting a write.
+- `weekly_summary.py`: `print_week_summary()` now returns cleanly on an
+  empty dates list instead of crashing with `IndexError`. `safe_int()`
+  expanded to handle `None`, `NaN`, `inf`, and string-encoded numbers.
+- `calorie-tracker` skill: Added Error Handling section covering corrupt
+  log files, deletion on empty log, empty input, and non-numeric macros.
+- `meal-prep-planner` skill: Added Error Handling section covering missing
+  targets, corrupt meal library, and null macro values.
+- `meal-plan-generator` agent: Added Error Handling section covering
+  missing targets, null values, corrupt library, missing `last_used`
+  field, and write failures.
+
+---
+
 ## [0.1.0] — 2026-03-27
 
 ### Added
@@ -81,5 +105,6 @@ and [Semantic Versioning 2.0.0](https://semver.org/).
 
 ---
 
-[Unreleased]: https://github.com/<username>/health-fitness/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/<username>/health-fitness/releases/tag/v0.1.0
+[Unreleased]: https://github.com/lzamorano96/health-fitness/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/lzamorano96/health-fitness/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/lzamorano96/health-fitness/releases/tag/v0.1.0
